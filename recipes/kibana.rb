@@ -1,5 +1,9 @@
 include_recipe "git"
-include_recipe "logrotate"
+unless platform_family?("smartos", "solaris2")
+  include_recipe "logrotate"
+else
+  include_recipe "logadm"
+end
 
 kibana_base = node['logstash']['kibana']['basedir']
 kibana_home = node['logstash']['kibana']['home']
@@ -134,13 +138,17 @@ when "ruby"
     subscribes :restart, [ "link[#{kibana_home}]", "template[#{kibana_home}/KibanaConfig.rb]", "template[#{kibana_home}/kibana-daemon.rb]" ]
   end
     
-  logrotate_app "kibana" do
-    cookbook "logrotate"
-    path "/var/log/kibana/kibana.output"
-    frequency "daily"
-    options [ "missingok", "notifempty" ]
-    rotate 30
-    create "644 kibana kibana"
+  unless platform_family?('smartos', 'solaris2')
+    logrotate_app "kibana" do
+      cookbook "logrotate"
+      path "/var/log/kibana/kibana.output"
+      frequency "daily"
+      options [ "missingok", "notifempty" ]
+      rotate 30
+      create "644 kibana kibana"
+    end
+  else
+    # TODO logadm
   end
 
   server_auth_method = node['logstash']['kibana']['auth']['server_auth_method']
