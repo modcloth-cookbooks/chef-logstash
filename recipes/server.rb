@@ -166,7 +166,8 @@ elsif platform_family? "rhel","fedora"
 elsif platform_family? "smartos", "solaris2"
   logstash_home = "#{node['logstash']['basedir']}/server"
   logstash_opts = "agent -f #{logstash_home}/etc/logstash.conf " <<
-                  "-l #{node['logstash']['log_dir']}/logstash.log"
+                  "-l #{node['logstash']['log_dir']}/logstash.log " <<
+                  node['logstash']['server']['logstash_opts']
   java_opts = "-server -Xms#{node['logstash']['server']['xms']} " <<
               "-Xmx#{node['logstash']['server']['xmx']} " <<
               "-Djava.io.tmpdir=#{logstash_home}/tmp/ " <<
@@ -174,24 +175,26 @@ elsif platform_family? "smartos", "solaris2"
               "#{'-Djava.net.preferIPv4Stack=true' if node['logstash']['agent']['ipv4_only']}"
   gc_opts = node['logstash']['server']['gc_opts']
 
-  smf "logstash_server" do
+  smf 'logstash_server' do
     user node['logstash']['user']
     start_command "java #{java_opts} #{gc_opts} -jar #{logstash_home}/lib/logstash.jar #{logstash_opts}"
-    start_timeout 30
+    start_timeout 90
     stop_command ':kill'
-    stop_timeout 30
+    stop_timeout 90
     restart_command ':kill -SIGHUP'
-    restart_timeout 30
+    restart_timeout 90
     environment(
       'LOGSTASH_HOME' => logstash_home,
       'HOME' => logstash_home,
+      'PATH' => '/bin:/sbin:/usr/bin:/usr/sbin:/opt/local/bin:/opt/local/sbin',
       'GC_OPTS' => gc_opts,
       'JAVA_OPTS' => java_opts,
       'LOGSTASH_OPTS' => logstash_opts,
     )
     locale "C"
-    manifest_type "application"
-    service_path "/var/svc/manifest"
+    manifest_type 'application'
+    duration 'child'
+    service_path '/var/svc/manifest'
   end
 
   service "logstash_server" do
